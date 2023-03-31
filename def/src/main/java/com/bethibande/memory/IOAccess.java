@@ -1,10 +1,5 @@
-package com.bethibande.memory.def;
+package com.bethibande.memory;
 
-import com.bethibande.memory.impl.IOAccessible;
-import com.bethibande.memory.impl.IOBuffer;
-import com.bethibande.memory.impl.IOFile;
-import com.bethibande.memory.impl.IOScopedMemory;
-import com.bethibande.memory.impl.IOStream;
 import jdk.incubator.foreign.MemoryLayout;
 import org.jetbrains.annotations.Nullable;
 
@@ -151,6 +146,23 @@ public class IOAccess {
      */
     public static IOAccess allocate(final int size) {
         return allocate(size, true, true, true);
+    }
+
+    protected static IOAccess from(final IOAccess context, final IOAccessible wrap, final long length) {
+        final IOAccess value = new IOAccess(
+                0,
+                length,
+                context.isIndexed(),
+                context.canWrite(),
+                context.canRead(),
+                wrap
+        );
+
+        if(context.isOwned()) {
+            value.setOwner(context.getOwner());
+        }
+
+        return value;
     }
 
     public static IOAccess allocate(final int size,
@@ -633,12 +645,7 @@ public class IOAccess {
         checkSlicing();
         checkReadIndex(index, length);
 
-        final IOAccess slice = new IOAccess(0, length, isIndexed, canWrite, canRead, accessible.slice(index, length));
-        if(isOwned()) {
-            slice.setOwner(owner);
-        }
-
-        return slice;
+        return IOAccess.from(this, accessible.slice(index, length), length);
     }
 
     public void skip(final long bytes) {

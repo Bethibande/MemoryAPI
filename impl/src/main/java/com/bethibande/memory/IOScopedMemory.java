@@ -1,10 +1,10 @@
-package com.bethibande.memory.impl;
+package com.bethibande.memory;
 
 import jdk.incubator.foreign.MemoryLayout;
 import jdk.incubator.foreign.MemorySegment;
 import jdk.incubator.foreign.ResourceScope;
 
-public class IOScopedMemory implements IOAccessible {
+class IOScopedMemory implements IOAccessible {
 
     public static IOScopedMemory allocateAlignedNative(final MemoryLayout layout) {
         final ResourceScope scope = ResourceScope.newConfinedScope();

@@ -1,4 +1,4 @@
-package com.bethibande.memory.impl;
+package com.bethibande.memory;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public class IOStream implements IOAccessible {
+class IOStream implements IOAccessible {
 
     private final OutputStream output;
     private final InputStream input;

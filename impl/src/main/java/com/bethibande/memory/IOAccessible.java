@@ -1,4 +1,4 @@
-package com.bethibande.memory.impl;
+package com.bethibande.memory;
 
 /**
  * This class represents unsafe access to memory, streams and more.
@@ -8,7 +8,7 @@ package com.bethibande.memory.impl;
  * Whether read/write or indexed get/set operations are available or index bounds are to be validated
  * by all classes using this class
  */
-public interface IOAccessible {
+interface IOAccessible {
 
     default boolean canSlice() {
         return false;

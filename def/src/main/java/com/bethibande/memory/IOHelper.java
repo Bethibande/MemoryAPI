@@ -1,4 +1,4 @@
-package com.bethibande.memory.def;
+package com.bethibande.memory;
 
 /**
  * There isn't much to see here, this class simply defines a bunch of helper methods

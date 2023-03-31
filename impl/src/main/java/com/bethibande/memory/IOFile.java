@@ -1,11 +1,11 @@
-package com.bethibande.memory.impl;
+package com.bethibande.memory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-public class IOFile implements IOAccessible {
+class IOFile implements IOAccessible {
 
     private final RandomAccessFile raf;
 

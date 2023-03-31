@@ -1,9 +1,9 @@
-package com.bethibande.memory.impl;
+package com.bethibande.memory;
 
 import jdk.incubator.foreign.MemorySegment;
 import jdk.incubator.foreign.ResourceScope;
 
-public class IOBuffer implements IOAccessible {
+class IOBuffer implements IOAccessible {
 
     private byte[] buffer;
     private int index;
