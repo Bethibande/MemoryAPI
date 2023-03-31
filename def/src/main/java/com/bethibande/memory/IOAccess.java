@@ -1,6 +1,5 @@
 package com.bethibande.memory;
 
-import jdk.incubator.foreign.MemoryLayout;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
@@ -14,10 +13,10 @@ import java.util.UUID;
  * Reads or writes data, to buffers, streams and more
  */
 @SuppressWarnings("unused")
-public class IOAccess {
+public sealed class IOAccess permits NativeIOAccess {
 
-    public static final byte ZERO = 0;
-    public static final byte ONE = 1;
+    private static final byte ZERO = 0;
+    private static final byte ONE = 1;
 
     /**
      * Only supports bulk read and write operations, all methods reading/writing only a single byte like {@link #read()}
@@ -25,16 +24,18 @@ public class IOAccess {
      * Beware, this allocates off-heap memory, only use to allocate and manage large blocks of data.
      * The resulting access, will be owned by the Thread that invoke this method.
      * The access may not be accessed by any other thread
-     * @param layout the memory layout used to map the underlying memory segment.
+     * @param memoryLayout the memory layout used to map the underlying memory segment.
+     *                     Must be an instance of jdk.incubator.foreign.MemoryLayout.
+     * @param byteSize the byte size of the memory layout
      */
-    public static IOAccess scopedAlignedMemory(final MemoryLayout layout) {
-        return new IOAccess(
+    public static IOAccess scopedAlignedMemory(final Object memoryLayout, final long byteSize) {
+        return new NativeIOAccess(
                 0,
-                layout.byteSize(),
+                byteSize,
                 true,
                 true,
                 true,
-                IOScopedMemory.allocateAlignedNative(layout),
+                IOScopedMemory.allocateAlignedNative(memoryLayout),
                 true
         );
     }
@@ -49,7 +50,7 @@ public class IOAccess {
      * @param alignment the memory alignment
      */
     public static IOAccess scopedAlignedMemory(final long size, final long alignment) {
-        return new IOAccess(
+        return new NativeIOAccess(
                 0,
                 size,
                 true,
@@ -69,7 +70,7 @@ public class IOAccess {
      * @param size the byte size
      */
     public static IOAccess scopedMemory(final long size) {
-        return new IOAccess(
+        return new NativeIOAccess(
                 0,
                 size,
                 true,
@@ -148,7 +149,23 @@ public class IOAccess {
         return allocate(size, true, true, true);
     }
 
+    protected static IOAccess from(final IOAccess context, final IOScopedMemory wrap, final long length) {
+        return new NativeIOAccess(
+                0,
+                length,
+                context.isIndexed(),
+                context.canWrite(),
+                context.canRead(),
+                wrap,
+                true
+        );
+    }
+
     protected static IOAccess from(final IOAccess context, final IOAccessible wrap, final long length) {
+        if(wrap instanceof IOScopedMemory mem) {
+            return from(context, mem, length);
+        }
+
         final IOAccess value = new IOAccess(
                 0,
                 length,
@@ -213,8 +230,9 @@ public class IOAccess {
     }
 
     protected void checkSlicing() {
-        if(accessible().canSlice()) return;
-        throw new IllegalAccessError("The underlying access doesn't permit slicing.");
+        checkOwnership();
+        if(released) throw new IllegalStateException("Cannot slice an access after it has been released.");
+        if(!accessible().canSlice()) throw new IllegalAccessError("The underlying access doesn't permit slicing.");
     }
 
     protected void checkOwnership() {
@@ -305,7 +323,7 @@ public class IOAccess {
     }
 
     public short readUByte() {
-        return IOHelper.uByteToShort(read());
+        return IOHelper.byteToUByte(read());
     }
 
     public byte[] read(final int length) {
@@ -325,7 +343,7 @@ public class IOAccess {
     }
 
     public short getUByte(final long index) {
-        return IOHelper.uByteToShort(get(index));
+        return IOHelper.byteToUByte(get(index));
     }
 
     public byte[] get(final long index, final int length) {
@@ -344,8 +362,8 @@ public class IOAccess {
         accessible.write(b);
     }
 
-    public void writeUByte(final short s) {
-        write(IOHelper.shortToUByte(s));
+    public void writeUByte(final short b) {
+        write(IOHelper.uByteToByte(b));
     }
 
     public void write(final byte[] data) {
@@ -380,8 +398,8 @@ public class IOAccess {
         accessible.set(b, index);
     }
 
-    public void setUByte(final short s, final long index) {
-        set(IOHelper.shortToUByte(s), index);
+    public void setUByte(final short b, final long index) {
+        set(IOHelper.uByteToByte(b), index);
     }
 
     public short readShort() {
@@ -389,15 +407,15 @@ public class IOAccess {
     }
 
     public int readUShort() {
-        return IOHelper.uShortToInt(IOHelper.bytesToShort(read(2)));
+        return IOHelper.shortToUShort(IOHelper.bytesToShort(read(2)));
     }
 
     public void writeShort(final short s) {
         write(IOHelper.shortToBytes(s), 0, 2);
     }
 
-    public void writeUShort(final int i) {
-        write(IOHelper.shortToBytes(IOHelper.intToUShort(i)), 0, 2);
+    public void writeUShort(final int s) {
+        write(IOHelper.shortToBytes(IOHelper.uShortToShort(s)), 0, 2);
     }
 
     public short getShort(final long index) {
@@ -405,7 +423,7 @@ public class IOAccess {
     }
 
     public int getUShort(final long index) {
-        return IOHelper.uShortToInt(IOHelper.bytesToShort(get(index, 2)));
+        return IOHelper.shortToUShort(IOHelper.bytesToShort(get(index, 2)));
     }
 
     public void setShort(final short s, final long index) {
@@ -413,7 +431,7 @@ public class IOAccess {
     }
 
     public void setUShort(final int s, final long index) {
-        set(IOHelper.shortToBytes(IOHelper.intToUShort(s)), index, 0, 2);
+        set(IOHelper.shortToBytes(IOHelper.uShortToShort(s)), index, 0, 2);
     }
 
 
@@ -422,7 +440,7 @@ public class IOAccess {
     }
 
     public long readUInt() {
-        return IOHelper.uIntToLong(IOHelper.bytesToInt(read(4)));
+        return IOHelper.intToUInt(IOHelper.bytesToInt(read(4)));
     }
 
     public void writeInt(final int i) {
@@ -430,7 +448,7 @@ public class IOAccess {
     }
 
     public void writeUInt(final long i) {
-        write(IOHelper.intToBytes(IOHelper.longToUInt(i)), 0, 4);
+        write(IOHelper.intToBytes(IOHelper.uIntToInt(i)), 0, 4);
     }
 
     public int getInt(final long index) {
@@ -438,7 +456,7 @@ public class IOAccess {
     }
 
     public long getUInt(final long index) {
-        return IOHelper.uIntToLong(IOHelper.bytesToInt(get(index, 4)));
+        return IOHelper.intToUInt(IOHelper.bytesToInt(get(index, 4)));
     }
 
     public void setInt(final int i, final long index) {
@@ -446,7 +464,7 @@ public class IOAccess {
     }
 
     public void setUInt(final long i, final long index) {
-        set(IOHelper.intToBytes(IOHelper.longToUInt(i)), index, 0, 4);
+        set(IOHelper.intToBytes(IOHelper.uIntToInt(i)), index, 0, 4);
     }
 
     public long readLong() {
@@ -659,6 +677,9 @@ public class IOAccess {
         accessible.flush();
     }
 
+    /**
+     * Releases memory allocated by the access
+     */
     public void release() {
         checkOwnership();
         accessible.release();
@@ -698,8 +719,12 @@ public class IOAccess {
     // Getters and setters
     //-------------------------------------------------------------------------------------------
 
+    /**
+     * Resets the read/write index
+     */
     public void flip() {
         checkIndexed();
+        checkOwnership();
         setIndex(0);
     }
 
@@ -752,7 +777,7 @@ public class IOAccess {
         return canRead;
     }
 
-    public IOAccessible accessible() {
+    IOAccessible accessible() {
         return accessible;
     }
 }

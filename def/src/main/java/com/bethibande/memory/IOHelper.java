@@ -5,27 +5,27 @@ package com.bethibande.memory;
  */
 public class IOHelper {
 
-    public static byte shortToUByte(final short s) {
+    public static byte uByteToByte(final short s) {
         return (byte) s;
     }
 
-    public static short intToUShort(final int i) {
+    public static short uShortToShort(final int i) {
         return (short)i;
     }
 
-    public static int longToUInt(final long l) {
+    public static int uIntToInt(final long l) {
         return (int)l;
     }
 
-    public static short uByteToShort(final byte b) {
+    public static short byteToUByte(final byte b) {
         return (short) (b & 0xff);
     }
 
-    public static int uShortToInt(final short s) {
+    public static int shortToUShort(final short s) {
         return s & 0xffff;
     }
 
-    public static long uIntToLong(final int i) {
+    public static long intToUInt(final int i) {
         return (long) i & 0xffffffffL;
     }
 
