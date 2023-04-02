@@ -3,9 +3,12 @@ package com.bethibande.memory;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.UUID;
 
@@ -19,8 +22,53 @@ public sealed class IOAccess permits NativeIOAccess {
     private static final byte ONE = 1;
 
     /**
-     * Only supports bulk read and write operations, all methods reading/writing only a single byte like {@link #read()}
-     * are not supported by the resulting IOAccess.
+     * Maps the given file into memory, the given path must be a file.
+     * All changes made to the mapped file in memory, will be written to the underlying file.
+     * Reading/Writing from the underlying file is handled by the operating system and
+     * will not be specified here. <br>
+     * For more detailed documentation look <a href="https://docs.oracle.com/en/java/javase/17/docs/api/jdk.incubator.foreign/jdk/incubator/foreign/MemorySegment.html#mapFile(java.nio.file.Path,long,long,java.nio.channels.FileChannel.MapMode,jdk.incubator.foreign.ResourceScope)">here</a>
+     * @param file
+     * @param offset offset within the file
+     * @param size the amounts of bytes to map from the file offset
+     * @param mode mode used to map memory
+     * @return a new IOAccess that can be used to read/write the file in memory
+     * @throws IOException
+     */
+    public static IOAccess map(final Path file,
+                               final long offset,
+                               final long size,
+                               final FileChannel.MapMode mode) throws IOException {
+        return new NativeIOAccess(
+                0,
+                size,
+                true,
+                mode == FileChannel.MapMode.PRIVATE || mode == FileChannel.MapMode.READ_WRITE,
+                true,
+                IOScopedMemory.mapFile(file, offset, size, mode),
+                true
+        );
+    }
+
+    /**
+     * This method will create an access reading/writing at the given memory address. <br>
+     * !! Note: Do not use this unless you know what you are doing, using this may cause page faults or corrupt memory.
+     * @param address memory address to read/write from
+     * @param size the size of the resulting access in bytes
+     * @return a new access reading/writing from the given memory address
+     */
+    public static IOAccess atAddress(final long address, final long size) {
+        return new NativeIOAccess(
+                0,
+                size,
+                true,
+                true,
+                true,
+                IOScopedMemory.atAddress(address, size),
+                true
+        );
+    }
+
+    /**
      * Beware, this allocates off-heap memory, only use to allocate and manage large blocks of data.
      * The resulting access, will be owned by the Thread that invoke this method.
      * The access may not be accessed by any other thread
@@ -41,8 +89,6 @@ public sealed class IOAccess permits NativeIOAccess {
     }
 
     /**
-     * Only supports bulk read and write operations, all methods reading/writing only a single byte like {@link #read()}
-     * are not supported by the resulting IOAccess.
      * Beware, this allocates off-heap memory, only use to allocate and manage large blocks of data.
      * The resulting access, will be owned by the Thread that invoke this method.
      * The access may not be accessed by any other thread
@@ -62,8 +108,6 @@ public sealed class IOAccess permits NativeIOAccess {
     }
 
     /**
-     * Only supports bulk read and write operations, all methods reading/writing only a single byte like {@link #read()}
-     * are not supported by the resulting IOAccess.
      * Beware, this allocates off-heap memory, only use to allocate and manage large blocks of data
      * The resulting access, will be owned by the Thread that invoke this method.
      * The access may not be accessed by any other thread

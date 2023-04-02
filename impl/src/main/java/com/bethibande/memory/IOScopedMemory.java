@@ -1,10 +1,14 @@
 package com.bethibande.memory;
 
 import jdk.incubator.foreign.MemoryAccess;
+import jdk.incubator.foreign.MemoryAddress;
 import jdk.incubator.foreign.MemoryLayout;
 import jdk.incubator.foreign.MemorySegment;
 import jdk.incubator.foreign.ResourceScope;
 
+import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicLong;
 
 class IOScopedMemory implements IOAccessible {
@@ -12,11 +16,30 @@ class IOScopedMemory implements IOAccessible {
     private static final byte ONE = 0x01;
     private static final byte ZERO = 0x00;
 
+    public static IOScopedMemory mapFile(final Path path,
+                                         final long offset,
+                                         final long size,
+                                         final FileChannel.MapMode mode) throws IOException {
+        if(path == null || mode == null) throw new NullPointerException("path and mode must not be null.");
+        if(!path.toFile().isFile()) throw new IllegalArgumentException("The specified path must be a file.");
+
+        final ResourceScope scope = ResourceScope.newConfinedScope();
+        final MemorySegment segment = MemorySegment.mapFile(path, offset, size, mode, scope);
+
+        return new IOScopedMemory(scope, segment);
+    }
+
     public static IOScopedMemory allocateAlignedNative(final Object _layout) {
         if(!(_layout instanceof MemoryLayout layout)) throw new IllegalArgumentException("layout must be an instance of jdk.incubator.foreign.MemoryLayout.");
 
         final ResourceScope scope = ResourceScope.newConfinedScope();
         return new IOScopedMemory(scope, MemorySegment.allocateNative(layout, scope));
+    }
+
+    public static IOScopedMemory atAddress(final long addr, final long size) {
+        final MemoryAddress address = MemoryAddress.ofLong(addr);
+        final ResourceScope scope = ResourceScope.newConfinedScope();
+        return new IOScopedMemory(scope, address.asSegment(size, scope));
     }
 
     public static IOScopedMemory allocateNative(final long size) {
