@@ -1,11 +1,13 @@
 package com.bethibande.memory;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
@@ -242,6 +244,8 @@ public sealed class IOAccess permits NativeIOAccess {
 
     private boolean released = false;
 
+    private ByteOrder order = ByteOrder.nativeOrder();
+
     private Long owner = null;
 
     protected IOAccess(final long index,
@@ -271,6 +275,10 @@ public sealed class IOAccess permits NativeIOAccess {
 
     public void acquireOwnership() {
         setOwner(Thread.currentThread());
+    }
+
+    protected void checkAvailable() {
+        if(released) throw new IllegalStateException("The access has already been released");
     }
 
     protected void checkSlicing() {
@@ -447,117 +455,117 @@ public sealed class IOAccess permits NativeIOAccess {
     }
 
     public short readShort() {
-        return IOHelper.bytesToShort(read(2));
+        return IOHelper.bytesToShort(read(2), order);
     }
 
     public int readUShort() {
-        return IOHelper.shortToUShort(IOHelper.bytesToShort(read(2)));
+        return IOHelper.shortToUShort(IOHelper.bytesToShort(read(2), order));
     }
 
     public void writeShort(final short s) {
-        write(IOHelper.shortToBytes(s), 0, 2);
+        write(IOHelper.shortToBytes(s, order), 0, 2);
     }
 
     public void writeUShort(final int s) {
-        write(IOHelper.shortToBytes(IOHelper.uShortToShort(s)), 0, 2);
+        write(IOHelper.shortToBytes(IOHelper.uShortToShort(s), order), 0, 2);
     }
 
     public short getShort(final long index) {
-        return IOHelper.bytesToShort(get(index, 2));
+        return IOHelper.bytesToShort(get(index, 2), order);
     }
 
     public int getUShort(final long index) {
-        return IOHelper.shortToUShort(IOHelper.bytesToShort(get(index, 2)));
+        return IOHelper.shortToUShort(IOHelper.bytesToShort(get(index, 2), order));
     }
 
     public void setShort(final short s, final long index) {
-        set(IOHelper.shortToBytes(s), index, 0, 2);
+        set(IOHelper.shortToBytes(s, order), index, 0, 2);
     }
 
     public void setUShort(final int s, final long index) {
-        set(IOHelper.shortToBytes(IOHelper.uShortToShort(s)), index, 0, 2);
+        set(IOHelper.shortToBytes(IOHelper.uShortToShort(s), order), index, 0, 2);
     }
 
 
     public int readInt() {
-        return IOHelper.bytesToInt(read(4));
+        return IOHelper.bytesToInt(read(4), order);
     }
 
     public long readUInt() {
-        return IOHelper.intToUInt(IOHelper.bytesToInt(read(4)));
+        return IOHelper.intToUInt(IOHelper.bytesToInt(read(4), order));
     }
 
     public void writeInt(final int i) {
-        write(IOHelper.intToBytes(i), 0, 4);
+        write(IOHelper.intToBytes(i, order), 0, 4);
     }
 
     public void writeUInt(final long i) {
-        write(IOHelper.intToBytes(IOHelper.uIntToInt(i)), 0, 4);
+        write(IOHelper.intToBytes(IOHelper.uIntToInt(i), order), 0, 4);
     }
 
     public int getInt(final long index) {
-        return IOHelper.bytesToInt(get(index, 2));
+        return IOHelper.bytesToInt(get(index, 2), order);
     }
 
     public long getUInt(final long index) {
-        return IOHelper.intToUInt(IOHelper.bytesToInt(get(index, 4)));
+        return IOHelper.intToUInt(IOHelper.bytesToInt(get(index, 4), order));
     }
 
     public void setInt(final int i, final long index) {
-        set(IOHelper.intToBytes(i), index, 0, 4);
+        set(IOHelper.intToBytes(i, order), index, 0, 4);
     }
 
     public void setUInt(final long i, final long index) {
-        set(IOHelper.intToBytes(IOHelper.uIntToInt(i)), index, 0, 4);
+        set(IOHelper.intToBytes(IOHelper.uIntToInt(i), order), index, 0, 4);
     }
 
     public long readLong() {
-        return IOHelper.bytesToLong(read(8));
+        return IOHelper.bytesToLong(read(8), order);
     }
 
     public long getLong(final long index) {
-        return IOHelper.bytesToLong(get(index, 8));
+        return IOHelper.bytesToLong(get(index, 8), order);
     }
 
     public void writeLong(final long l) {
-        write(IOHelper.longToBytes(l), 0, 8);
+        write(IOHelper.longToBytes(l, order), 0, 8);
     }
 
     public void setLong(final long l, final long index) {
-        set(IOHelper.longToBytes(l), index, 0, 8);
+        set(IOHelper.longToBytes(l, order), index, 0, 8);
     }
 
 
     public void writeFloat(final float f) {
-        write(IOHelper.floatToBytes(f), 0, 4);
+        write(IOHelper.floatToBytes(f, order), 0, 4);
     }
 
     public float readFloat() {
-        return IOHelper.bytesToFloat(read(4));
+        return IOHelper.bytesToFloat(read(4), order);
     }
 
     public void setFloat(final float f, final long index) {
-        set(IOHelper.floatToBytes(f), index, 0, 4);
+        set(IOHelper.floatToBytes(f, order), index, 0, 4);
     }
 
     public float getFloat(final long index) {
-        return IOHelper.bytesToFloat(get(index, 4));
+        return IOHelper.bytesToFloat(get(index, 4), order);
     }
 
     public void writeDouble(final double d) {
-        write(IOHelper.doubleToBytes(d), 0, 8);
+        write(IOHelper.doubleToBytes(d, order), 0, 8);
     }
 
     public double readDouble() {
-        return IOHelper.bytesToDouble(read(8));
+        return IOHelper.bytesToDouble(read(8), order);
     }
 
     public double getDouble(final long index) {
-        return IOHelper.bytesToDouble(get(index, 8));
+        return IOHelper.bytesToDouble(get(index, 8), order);
     }
 
     public void setDouble(final double d, final long index) {
-        set(IOHelper.doubleToBytes(d), index, 0, 8);
+        set(IOHelper.doubleToBytes(d, order), index, 0, 8);
     }
 
     public void writeBoolean(final boolean b) {
@@ -762,6 +770,23 @@ public sealed class IOAccess permits NativeIOAccess {
     //-------------------------------------------------------------------------------------------
     // Getters and setters
     //-------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the byte order used to read/write values, default value is {@link ByteOrder#nativeOrder()}
+     */
+    public ByteOrder getByteOrder() {
+        return order;
+    }
+
+    /**
+     * Set the byte order used to read/write values, default is {@link ByteOrder#nativeOrder()}
+     */
+    public void setByteOrder(final @NotNull ByteOrder order) {
+        checkOwnership();
+        checkAvailable();
+        this.order = order;
+        this.accessible.setByteOrder(order);
+    }
 
     /**
      * Resets the read/write index

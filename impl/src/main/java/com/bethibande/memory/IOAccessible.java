@@ -1,5 +1,7 @@
 package com.bethibande.memory;
 
+import java.nio.ByteOrder;
+
 /**
  * This class represents unsafe access to memory, streams and more.
  * This class does not validate read and write calls, all read and write calls,
@@ -9,6 +11,8 @@ package com.bethibande.memory;
  * by all classes using this class
  */
 interface IOAccessible {
+
+    default void setByteOrder(final ByteOrder order) { }
 
     default boolean canSlice() {
         return false;
