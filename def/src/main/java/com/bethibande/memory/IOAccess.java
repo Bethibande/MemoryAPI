@@ -1,6 +1,7 @@
 package com.bethibande.memory;
 
 import org.jetbrains.annotations.Nullable;
+import sun.misc.Unsafe;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,10 +17,47 @@ import java.util.UUID;
  * Reads or writes data, to buffers, streams and more
  */
 @SuppressWarnings("unused")
-public sealed class IOAccess permits NativeIOAccess {
+public sealed class IOAccess permits NativeIOAccess, UnsafeIOAccess {
 
     private static final byte ZERO = 0;
     private static final byte ONE = 1;
+
+    private static final Unsafe UNSAFE;
+    /**
+     * Byte offset of the index field within the class in memory
+     */
+    private static final long FIELD_INDEX_OFFSET;
+
+    static {
+        try {
+            UNSAFE = UnsafeHelper.getUnsafe();
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+
+        try {
+            FIELD_INDEX_OFFSET = UNSAFE.objectFieldOffset(IOAccess.class.getDeclaredField("index"));
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * An IOAccess with incredible read/write speed, especially using set and get methods.
+     * Allocates native, off-heap memory. <br>
+     * Using this unsafe buffer is very dangerous and only recommended for experienced people. <br>
+     * <b>!! Note:</b> There are no index checks when trying to access the resulting IOAccess.
+     *          There are also no checks preventing you from reading/writing after freeing the IOAccess.
+     *          The IOAccess will be freed, when calling {@link UnsafeIOAccess#free()} or {@link UnsafeIOAccess#close()}
+     *          or during finalization. <br>
+     * <b>!! Thread-safety:</b> This IOAccess implementation was not made with considerations to thread-safety.
+     *                   Use multi-threading at your own risk.
+     * @param size the mount of bytes to allocate
+     * @return a new, unsafe, IOAccess
+     */
+    public static IOAccess unsafe(final long size) {
+        return UnsafeIOAccess.allocate(size);
+    }
 
     /**
      * Maps the given file into memory, the given path must be a file.
@@ -233,7 +271,7 @@ public sealed class IOAccess permits NativeIOAccess {
         return new IOAccess(0, size, isIndexed, canRead, canWrite, new IOBuffer(new byte[size]));
     }
 
-    private long index;
+    private volatile long index;
     private final long length;
     private final boolean isIndexed;
     private final boolean canWrite;
@@ -279,11 +317,6 @@ public sealed class IOAccess permits NativeIOAccess {
         if(!accessible().canSlice()) throw new IllegalAccessError("The underlying access doesn't permit slicing.");
     }
 
-    protected void checkOwnership() {
-        if(owner == null) return;
-        if(owner != Thread.currentThread().getId()) throw new IllegalStateException("IOAccess is owned by another thread");
-    }
-
     /**
      * !! Note: if the given thread-id doesn't exist,
      * or you loose access to the owner thread, the accessible may never be used again.<br>
@@ -298,6 +331,11 @@ public sealed class IOAccess permits NativeIOAccess {
     public void setOwner(final Long threadId) {
         checkOwnership();
         this.owner = threadId;
+    }
+
+    protected void checkOwnership() {
+        if(owner == null) return;
+        if(owner != Thread.currentThread().getId()) throw new IllegalStateException("IOAccess is owned by another thread");
     }
 
     /**
@@ -353,15 +391,14 @@ public sealed class IOAccess permits NativeIOAccess {
         if(index + offset > length) throw new IndexOutOfBoundsException(index + offset);
     }
 
-    protected void index(final int offset) {
-        if(length < 0) return;
-        this.index += offset;
+    protected long idx(final long offset) {
+        return UNSAFE.getAndAddLong(this, FIELD_INDEX_OFFSET, offset);
     }
 
     public byte read() {
         checkRead();
         checkReadIndex(1);
-        index(-1);
+        idx(1);
 
         return accessible.read();
     }
@@ -373,9 +410,8 @@ public sealed class IOAccess permits NativeIOAccess {
     public byte[] read(final int length) {
         checkRead();
         checkReadIndex(length);
-        index(-length);
 
-        return accessible.read(length);
+        return accessible.get(idx(length), length);
     }
 
     public byte get(final long index) {
@@ -401,9 +437,8 @@ public sealed class IOAccess permits NativeIOAccess {
     public void write(final byte b) {
         checkWrite();
         checkWriteIndex(b);
-        index(1);
 
-        accessible.write(b);
+        accessible.set(b, idx(1));
     }
 
     public void writeUByte(final short b) {
@@ -417,9 +452,8 @@ public sealed class IOAccess permits NativeIOAccess {
     public void write(final byte[] data, final int offset, final int length) {
         checkWrite();
         checkWriteIndex(length);
-        index(length);
 
-        accessible.write(data, offset, length);
+        accessible.set(data, idx(length), offset, length);
     }
 
     public void set(final byte[] data, final long index) {
@@ -429,7 +463,7 @@ public sealed class IOAccess permits NativeIOAccess {
     public void set(final byte[] data, final long index, final int off, final int len) {
         checkWrite();
         checkIndexed();
-        checkWriteIndex(index, len);
+        //checkWriteIndex(index, len);
 
         accessible.set(data, index, off, len);
     }
@@ -437,7 +471,7 @@ public sealed class IOAccess permits NativeIOAccess {
     public void set(final byte b, final long index) {
         checkWrite();
         checkIndexed();
-        checkWriteIndex(index, 1);
+        //checkWriteIndex(index, 1);
 
         accessible.set(b, index);
     }
