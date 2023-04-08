@@ -7,6 +7,7 @@ import jdk.incubator.foreign.MemorySegment;
 import jdk.incubator.foreign.ResourceScope;
 
 import java.io.IOException;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicLong;
@@ -55,11 +56,17 @@ class IOScopedMemory implements IOAccessible {
     private final ResourceScope scope;
     private final MemorySegment segment;
 
+    private ByteOrder order = ByteOrder.nativeOrder();
     private AtomicLong index;
 
     public IOScopedMemory(final ResourceScope scope, final MemorySegment segment) {
         this.scope = scope;
         this.segment = segment;
+    }
+
+    @Override
+    public void setByteOrder(final ByteOrder order) {
+        this.order = order;
     }
 
     @Override
@@ -141,23 +148,23 @@ class IOScopedMemory implements IOAccessible {
     }
 
     public void setShort(final long index, final short s) {
-        MemoryAccess.setShortAtOffset(segment, index, s);
+        MemoryAccess.setShortAtOffset(segment, index, order, s);
     }
 
     public void setInt(final long index, final int i) {
-        MemoryAccess.setIntAtOffset(segment, index, i);
+        MemoryAccess.setIntAtOffset(segment, index, order, i);
     }
 
     public void setLong(final long index, final long l) {
-        MemoryAccess.setLongAtOffset(segment, index, l);
+        MemoryAccess.setLongAtOffset(segment, index, order, l);
     }
 
     public void setFloat(final long index, final float f) {
-        MemoryAccess.setFloatAtOffset(segment, index, f);
+        MemoryAccess.setFloatAtOffset(segment, index, order, f);
     }
 
     public void setDouble(final long index, final double d) {
-        MemoryAccess.setDoubleAtOffset(segment, index, d);
+        MemoryAccess.setDoubleAtOffset(segment, index, order, d);
     }
 
     public void setBoolean(final long index, final boolean b) {
@@ -173,23 +180,23 @@ class IOScopedMemory implements IOAccessible {
     }
 
     public short getShort(final long index) {
-        return MemoryAccess.getShortAtOffset(segment, index);
+        return MemoryAccess.getShortAtOffset(segment, index, order);
     }
 
     public int getInt(final long index) {
-        return MemoryAccess.getIntAtOffset(segment, index);
+        return MemoryAccess.getIntAtOffset(segment, index, order);
     }
 
     public long getLong(final long index) {
-        return MemoryAccess.getLongAtOffset(segment, index);
+        return MemoryAccess.getLongAtOffset(segment, index, order);
     }
 
     public float getFloat(final long index) {
-        return MemoryAccess.getFloatAtOffset(segment, index);
+        return MemoryAccess.getFloatAtOffset(segment, index, order);
     }
 
     public double getDouble(final long index) {
-        return MemoryAccess.getDoubleAtOffset(segment, index);
+        return MemoryAccess.getDoubleAtOffset(segment, index, order);
     }
 
     public boolean getBoolean(final long index) {
@@ -197,7 +204,7 @@ class IOScopedMemory implements IOAccessible {
     }
 
     public char getChar(final long index) {
-        return MemoryAccess.getCharAtOffset(segment, index);
+        return MemoryAccess.getCharAtOffset(segment, index, order);
     }
 
     @Override
